@@ -1,0 +1,1472 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>산티아고 순례길 여행 계획서 | Camino Francés 2026</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=Cinzel:wght@400;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --yellow: #E8B84B;
+    --orange: #F4813F;
+    --dark: #0f0f1a;
+    --darker: #080812;
+    --card: #1a1a2e;
+    --card2: #16213e;
+    --text: #e8e8f0;
+    --muted: #8888aa;
+    --confirmed: #4ade80;
+    --unconfirmed: #94a3b8;
+    --camino: #E8B84B;
+    --transit: #60a5fa;
+    --rest: #a78bfa;
+    --arrival: #f472b6;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  body { font-family:'Noto Sans KR',sans-serif; background:var(--dark); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+
+  /* HEADER */
+  header {
+    background: linear-gradient(135deg, var(--darker) 0%, #1a0a00 50%, #0a0a20 100%);
+    border-bottom: 1px solid rgba(232,184,75,0.3);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    z-index: 100;
+  }
+  .header-left h1 { font-family:'Cinzel',serif; font-size:1.25rem; color:var(--yellow); letter-spacing:0.05em; }
+  .header-left p { font-size:0.75rem; color:var(--muted); margin-top:2px; }
+  .header-stats { display:flex; gap:20px; }
+  .stat { text-align:center; }
+  .stat-val { font-size:1.1rem; font-weight:700; color:var(--yellow); }
+  .stat-lbl { font-size:0.65rem; color:var(--muted); letter-spacing:0.05em; }
+
+  /* MOBILE MAP TOGGLE */
+  .map-toggle-btn {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 2000;
+    background: var(--yellow);
+    color: #000;
+    border: none;
+    border-radius: 50px;
+    padding: 10px 18px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-family: 'Noto Sans KR', sans-serif;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(232,184,75,0.5);
+    transition: all 0.2s;
+  }
+  .map-toggle-btn:active { transform: scale(0.95); }
+
+  /* TAB NAV */
+  .tab-nav {
+    display: flex;
+    background: rgba(8,8,18,0.95);
+    border-bottom: 1px solid rgba(232,184,75,0.15);
+    flex-shrink: 0;
+    z-index: 99;
+  }
+  .tab-btn {
+    padding: 10px 22px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.25s;
+    letter-spacing: 0.03em;
+    font-family: 'Noto Sans KR', sans-serif;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .tab-btn.active { color: var(--yellow); border-bottom-color: var(--yellow); }
+
+  /* PANELS */
+  .panel { display:none; flex:1; overflow:hidden; }
+  .panel.active { display:flex; }
+
+  /* ── PANEL: 일정 ── */
+  .main { display:flex; flex:1; overflow:hidden; width:100%; }
+
+  .sidebar {
+    width: 340px;
+    flex-shrink: 0;
+    background: var(--darker);
+    border-right: 1px solid rgba(232,184,75,0.15);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(232,184,75,0.3) transparent;
+  }
+  .sidebar::-webkit-scrollbar { width:4px; }
+  .sidebar::-webkit-scrollbar-thumb { background:rgba(232,184,75,0.3); border-radius:2px; }
+
+  .phase-header {
+    padding: 8px 16px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .phase-header.transit { background:rgba(96,165,250,0.15); color:#60a5fa; border-left:3px solid #60a5fa; }
+  .phase-header.camino  { background:rgba(232,184,75,0.15); color:var(--yellow); border-left:3px solid var(--yellow); }
+  .phase-header.rest    { background:rgba(167,139,250,0.15); color:#a78bfa; border-left:3px solid #a78bfa; }
+
+  .day-card {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .day-card::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:transparent; transition:background 0.2s; }
+  .day-card:hover { background:rgba(255,255,255,0.04); }
+  .day-card.active { background:rgba(232,184,75,0.08); }
+  .day-card.active::before { background:var(--yellow); }
+
+  .day-card-header { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .day-badge { font-size:0.6rem; font-weight:700; padding:2px 7px; border-radius:10px; white-space:nowrap; }
+  .badge-transit { background:rgba(96,165,250,0.2); color:#60a5fa; }
+  .badge-camino  { background:rgba(232,184,75,0.2); color:var(--yellow); }
+  .badge-rest    { background:rgba(167,139,250,0.2); color:#a78bfa; }
+  .badge-arrival { background:rgba(244,114,182,0.2); color:#f472b6; }
+
+  .day-date { font-size:0.7rem; color:var(--muted); }
+  .day-title { font-size:0.85rem; font-weight:600; color:var(--text); line-height:1.3; }
+  .day-distance { font-size:0.7rem; color:var(--orange); font-weight:600; margin-top:2px; }
+  .day-note { font-size:0.65rem; color:#f87171; margin-top:2px; font-style:italic; }
+
+  .day-items { margin-top:6px; }
+  .day-item { font-size:0.7rem; color:var(--muted); padding:1px 0; display:flex; gap:6px; align-items:flex-start; }
+  .day-item::before { content:'·'; color:var(--yellow); flex-shrink:0; }
+
+  .accommodation {
+    margin-top:8px; padding:7px 10px; border-radius:6px;
+    display:flex; align-items:flex-start; gap:8px;
+  }
+  .acc-confirmed   { background:rgba(74,222,128,0.08); border:1px solid rgba(74,222,128,0.2); }
+  .acc-unconfirmed { background:rgba(148,163,184,0.06); border:1px solid rgba(148,163,184,0.15); }
+  .acc-icon { font-size:0.85rem; flex-shrink:0; margin-top:1px; }
+  .acc-name { font-size:0.72rem; font-weight:600; }
+  .acc-confirmed .acc-name   { color:var(--confirmed); }
+  .acc-unconfirmed .acc-name { color:var(--unconfirmed); }
+  .acc-detail { font-size:0.62rem; color:var(--muted); margin-top:2px; line-height:1.4; }
+
+  #map { flex:1; }
+
+  .legend {
+    position: absolute; bottom:30px; right:12px; z-index:1000;
+    background:rgba(15,15,26,0.92); border:1px solid rgba(232,184,75,0.2);
+    border-radius:10px; padding:12px 14px; font-size:0.68rem;
+    backdrop-filter:blur(10px); min-width:150px;
+  }
+  .legend-title { font-weight:700; color:var(--yellow); margin-bottom:8px; letter-spacing:0.05em; }
+  .legend-item { display:flex; align-items:center; gap:8px; margin-bottom:5px; color:var(--muted); }
+  .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+  .leaflet-popup-content-wrapper {
+    background:rgba(22,33,62,0.97) !important;
+    border:1px solid rgba(232,184,75,0.3) !important;
+    border-radius:10px !important;
+    color:var(--text) !important;
+    box-shadow:0 8px 32px rgba(0,0,0,0.5) !important;
+  }
+  .leaflet-popup-tip { background:rgba(22,33,62,0.97) !important; }
+  .popup-title { font-size:0.85rem; font-weight:700; color:var(--yellow); margin-bottom:4px; }
+  .popup-date  { font-size:0.68rem; color:var(--muted); margin-bottom:8px; }
+  .popup-hotel { font-size:0.72rem; color:var(--confirmed); font-weight:600; }
+  .popup-addr  { font-size:0.65rem; color:var(--muted); margin-top:2px; }
+  .popup-phone { font-size:0.65rem; color:#60a5fa; margin-top:2px; }
+  .popup-dist  { font-size:0.7rem; color:var(--orange); margin-top:6px; font-weight:600; }
+
+  /* ── PANEL: 비용 / 날씨 / 준비물 ── */
+  .scroll-panel {
+    flex:1; overflow-y:auto; padding:28px 32px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(232,184,75,0.3) transparent;
+  }
+  .scroll-panel::-webkit-scrollbar { width:5px; }
+  .scroll-panel::-webkit-scrollbar-thumb { background:rgba(232,184,75,0.3); border-radius:3px; }
+
+  /* TABLE WRAPPER for horizontal scroll */
+  .wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  .section-title {
+    font-family:'Cinzel',serif;
+    font-size:1.4rem;
+    color:var(--yellow);
+    margin-bottom:6px;
+    letter-spacing:0.04em;
+  }
+  .section-sub {
+    font-size:0.8rem; color:var(--muted); margin-bottom:28px;
+  }
+
+  /* COST PANEL */
+  .cost-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  .cost-card {
+    background: var(--card);
+    border: 1px solid rgba(232,184,75,0.15);
+    border-radius: 12px;
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cost-card::before {
+    content:'';
+    position:absolute; top:0; left:0; right:0; height:2px;
+  }
+  .cost-card.confirmed::before { background: linear-gradient(90deg, #4ade80, #22d3ee); }
+  .cost-card.estimated::before { background: linear-gradient(90deg, #94a3b8, #64748b); }
+  .cost-card.total::before    { background: linear-gradient(90deg, var(--yellow), var(--orange)); }
+  .cost-card-icon { font-size:1.4rem; margin-bottom:8px; }
+  .cost-card-label { font-size:0.7rem; color:var(--muted); margin-bottom:4px; letter-spacing:0.05em; }
+  .cost-card-amount { font-size:1.1rem; font-weight:700; color:var(--text); line-height:1.2; }
+  .cost-card.confirmed .cost-card-amount { color:#4ade80; }
+  .cost-card.total .cost-card-amount { color:var(--yellow); font-size:1.25rem; }
+  .cost-card-status { font-size:0.62rem; margin-top:6px; }
+  .cost-card.confirmed .cost-card-status { color:#4ade80; }
+  .cost-card.estimated .cost-card-status { color:var(--muted); }
+
+  .cost-section { margin-bottom:32px; }
+  .cost-section-title {
+    font-size:0.9rem; font-weight:700; color:var(--yellow);
+    margin-bottom:12px; padding-bottom:8px;
+    border-bottom:1px solid rgba(232,184,75,0.2);
+    display:flex; align-items:center; gap:8px;
+  }
+  .cost-badge {
+    font-size:0.6rem; padding:2px 8px; border-radius:10px; font-weight:700;
+  }
+  .cost-badge.confirmed { background:rgba(74,222,128,0.2); color:#4ade80; }
+  .cost-badge.estimated { background:rgba(148,163,184,0.15); color:#94a3b8; }
+
+  .data-table {
+    width:100%; border-collapse:collapse; font-size:0.78rem;
+  }
+  .data-table th {
+    background:rgba(232,184,75,0.08); color:var(--muted);
+    padding:8px 12px; text-align:left; font-weight:600;
+    font-size:0.68rem; letter-spacing:0.05em; border-bottom:1px solid rgba(232,184,75,0.15);
+  }
+  .data-table td {
+    padding:9px 12px; border-bottom:1px solid rgba(255,255,255,0.05);
+    color:var(--text); vertical-align:middle;
+  }
+  .data-table tr:last-child td { border-bottom:none; }
+  .data-table tr:hover td { background:rgba(255,255,255,0.03); }
+  .data-table .total-row td { font-weight:700; color:var(--yellow); background:rgba(232,184,75,0.06); border-top:1px solid rgba(232,184,75,0.2); }
+  .data-table .wrap { background:rgba(22,33,62,0.6); border:1px solid rgba(255,255,255,0.08); border-radius:10px; overflow:hidden; }
+
+  .confirm-badge {
+    display:inline-block; font-size:0.6rem; padding:1px 6px;
+    border-radius:6px; background:rgba(74,222,128,0.15);
+    color:#4ade80; font-weight:700; margin-left:4px; vertical-align:middle;
+  }
+  .amount-col { text-align:right; font-weight:600; color:var(--yellow); white-space:nowrap; }
+
+  /* WEATHER PANEL */
+  .weather-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  .weather-card {
+    background: var(--card);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    padding: 16px;
+    transition: border-color 0.2s;
+  }
+  .weather-card:hover { border-color:rgba(232,184,75,0.3); }
+  .weather-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .weather-card-place { font-size:0.85rem; font-weight:700; color:var(--text); }
+  .weather-card-date  { font-size:0.65rem; color:var(--muted); }
+  .weather-card-icon  { font-size:1.8rem; }
+  .weather-temps { display:flex; gap:16px; margin-bottom:8px; }
+  .temp-item { text-align:center; }
+  .temp-val { font-size:1.1rem; font-weight:700; }
+  .temp-high { color:#f97316; }
+  .temp-low  { color:#60a5fa; }
+  .temp-lbl  { font-size:0.6rem; color:var(--muted); margin-top:2px; }
+  .weather-detail { font-size:0.7rem; color:var(--muted); line-height:1.5; }
+  .weather-tip {
+    display:flex; align-items:flex-start; gap:6px;
+    background:rgba(232,184,75,0.06); border:1px solid rgba(232,184,75,0.15);
+    border-radius:6px; padding:8px 10px; margin-top:8px;
+    font-size:0.68rem; color:var(--yellow);
+  }
+  .weather-warn {
+    display:flex; align-items:flex-start; gap:6px;
+    background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.2);
+    border-radius:6px; padding:8px 10px; margin-top:8px;
+    font-size:0.68rem; color:#f87171;
+  }
+
+  .weather-timeline-row {
+    display: grid;
+    grid-template-columns: 70px 160px 80px 1fr;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size:0.75rem;
+    align-items:center;
+  }
+  .weather-timeline-row:hover { background:rgba(255,255,255,0.03); }
+  .weather-timeline-row .date  { color:var(--muted); font-size:0.68rem; }
+  .weather-timeline-row .place { color:var(--text); font-weight:500; }
+  .weather-timeline-row .temp  { color:#f97316; font-weight:700; }
+  .weather-timeline-row .rain  { }
+
+  /* CHECKLIST PANEL */
+  .checklist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 18px;
+    margin-bottom: 32px;
+  }
+  .checklist-card {
+    background: var(--card);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .checklist-card-header {
+    padding: 12px 16px;
+    display: flex; align-items:center; gap:10px;
+    background: rgba(255,255,255,0.03);
+    border-bottom:1px solid rgba(255,255,255,0.07);
+  }
+  .checklist-card-title { font-size:0.85rem; font-weight:700; color:var(--text); }
+  .checklist-priority {
+    font-size:0.6rem; padding:2px 8px; border-radius:10px; font-weight:700; margin-left:auto;
+  }
+  .priority-red    { background:rgba(239,68,68,0.2); color:#f87171; }
+  .priority-yellow { background:rgba(234,179,8,0.2); color:#facc15; }
+  .priority-green  { background:rgba(34,197,94,0.2); color:#4ade80; }
+
+  .checklist-items { padding:10px 16px; }
+  .check-item {
+    display: flex; align-items:flex-start; gap:10px;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    cursor:pointer;
+    transition: opacity 0.2s;
+  }
+  .check-item:last-child { border-bottom:none; }
+  .check-item input[type=checkbox] {
+    margin-top:2px; flex-shrink:0;
+    width:14px; height:14px; cursor:pointer;
+    accent-color: var(--yellow);
+  }
+  .check-item label { font-size:0.75rem; color:var(--text); cursor:pointer; line-height:1.4; }
+  .check-item label strong { color:var(--text); }
+  .check-item label .sub { display:block; color:var(--muted); font-size:0.65rem; margin-top:2px; }
+  .check-item.done label { text-decoration:line-through; color:var(--muted); }
+  .prio-icon { font-size:0.8rem; flex-shrink:0; }
+
+  .apps-grid {
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr));
+    gap:10px; margin-top:12px;
+  }
+  .app-card {
+    background:var(--card2); border:1px solid rgba(255,255,255,0.07);
+    border-radius:10px; padding:12px 14px;
+    display:flex; gap:10px; align-items:flex-start;
+  }
+  .app-icon { font-size:1.4rem; flex-shrink:0; }
+  .app-name { font-size:0.78rem; font-weight:700; color:var(--text); }
+  .app-desc { font-size:0.65rem; color:var(--muted); margin-top:3px; line-height:1.3; }
+  .app-free { display:inline-block; font-size:0.58rem; padding:1px 5px; border-radius:4px; background:rgba(74,222,128,0.15); color:#4ade80; margin-top:4px; }
+
+  .warn-box {
+    background:rgba(239,68,68,0.07); border:1px solid rgba(239,68,68,0.25);
+    border-radius:10px; padding:16px 18px; margin-top:24px;
+  }
+  .warn-box-title { font-size:0.85rem; font-weight:700; color:#f87171; margin-bottom:10px; }
+  .warn-item { font-size:0.78rem; color:var(--text); padding:5px 0; display:flex; gap:8px; }
+  .warn-item::before { content:'⚠️'; flex-shrink:0; }
+
+  .toast {
+    position:fixed; top:70px; left:50%;
+    transform:translateX(-50%);
+    background:rgba(232,184,75,0.95); color:#000;
+    padding:8px 18px; border-radius:20px; font-size:0.8rem; font-weight:600;
+    z-index:9999; opacity:0; transition:opacity 0.3s; pointer-events:none;
+  }
+  .toast.show { opacity:1; }
+
+  .progress-bar-wrap { margin:4px 0 8px; }
+  .progress-bar-bg { height:4px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; }
+  .progress-bar-fill { height:100%; border-radius:2px; background:linear-gradient(90deg, var(--yellow), var(--orange)); transition:width 0.5s; }
+  .progress-label { font-size:0.62rem; color:var(--muted); text-align:right; margin-top:3px; }
+
+  /* ══════════════════════════════════════════
+     TABLET (≤ 1024px)
+  ══════════════════════════════════════════ */
+  @media (max-width: 1024px) {
+    .sidebar { width: 280px; }
+    .cost-summary-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+    .weather-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+    .checklist-grid { grid-template-columns: 1fr; }
+    .scroll-panel { padding: 20px 20px; }
+  }
+
+  /* ══════════════════════════════════════════
+     MOBILE (≤ 767px)
+  ══════════════════════════════════════════ */
+  @media (max-width: 767px) {
+    /* BODY: allow scrolling when not in schedule tab */
+    body { height: 100dvh; }
+
+    /* HEADER */
+    header {
+      padding: 10px 16px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .header-left h1 { font-size: 0.95rem; }
+    .header-left p  { font-size: 0.68rem; }
+    .header-stats   { gap: 14px; width: 100%; justify-content: space-between; }
+    .stat-val { font-size: 0.95rem; }
+    .stat-lbl { font-size: 0.58rem; }
+
+    /* TAB NAV: horizontal scroll */
+    .tab-nav {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .tab-nav::-webkit-scrollbar { display: none; }
+    .tab-btn { padding: 9px 14px; font-size: 0.72rem; flex-shrink: 0; }
+
+    /* ── SCHEDULE PANEL: vertical stack ── */
+    #panel-schedule { flex-direction: column; }
+    .main { flex-direction: column; overflow: visible; }
+
+    /* SIDEBAR: compact top section */
+    .sidebar {
+      width: 100%;
+      max-height: 45vh;
+      border-right: none;
+      border-bottom: 1px solid rgba(232,184,75,0.15);
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+    /* Show map toggle button on mobile */
+    .map-toggle-btn { display: flex; align-items: center; gap: 6px; }
+
+    /* MAP: takes remaining space, collapses when hidden */
+    #map {
+      height: 45vh;
+      flex-shrink: 0;
+      transition: height 0.3s;
+    }
+    #map.map-hidden { height: 0; overflow: hidden; }
+
+    /* LEGEND: smaller, bottom-left on mobile */
+    .legend {
+      bottom: 10px;
+      right: 8px;
+      padding: 8px 10px;
+      font-size: 0.6rem;
+      min-width: 120px;
+    }
+
+    /* ── OTHER PANELS ── */
+    .scroll-panel { padding: 16px 14px; }
+    .section-title { font-size: 1.1rem; }
+    .section-sub   { font-size: 0.72rem; margin-bottom: 18px; }
+
+    /* COST: single column */
+    .cost-summary-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .cost-card { padding: 12px 14px; }
+    .cost-card-icon   { font-size: 1.1rem; margin-bottom: 6px; }
+    .cost-card-amount { font-size: 0.9rem; }
+    .cost-card.total .cost-card-amount { font-size: 1rem; }
+
+    /* TABLES: force horizontal scroll */
+    .wrap { border-radius: 8px; }
+    .data-table { min-width: 480px; }
+    .data-table th, .data-table td { padding: 7px 10px; font-size: 0.7rem; }
+    .cost-section { margin-bottom: 22px; }
+    .cost-section-title { font-size: 0.82rem; }
+
+    /* WEATHER: single column */
+    .weather-grid { grid-template-columns: 1fr; gap: 10px; }
+    .weather-card { padding: 12px; }
+    .weather-card-place { font-size: 0.78rem; }
+    .weather-temps { gap: 10px; }
+    .temp-val { font-size: 0.95rem; }
+    .weather-timeline-row {
+      grid-template-columns: 45px 1fr 58px 58px;
+      font-size: 0.62rem;
+      min-width: 320px;
+    }
+    .weather-timeline-row .place { font-size: 0.62rem; }
+
+    /* CHECKLIST: single column */
+    .checklist-grid { grid-template-columns: 1fr; gap: 12px; }
+    .checklist-card-title { font-size: 0.78rem; }
+    .check-item label { font-size: 0.72rem; }
+    .apps-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .app-card { padding: 10px; }
+    .app-name { font-size: 0.72rem; }
+    .app-desc { font-size: 0.6rem; }
+
+    /* DAY CARDS */
+    .day-title { font-size: 0.8rem; }
+    .day-item  { font-size: 0.68rem; }
+    .acc-name  { font-size: 0.7rem; }
+    .acc-detail{ font-size: 0.6rem; }
+  }
+
+  /* iPhone safe area (notch / home bar) */
+  @supports (padding-bottom: env(safe-area-inset-bottom)) {
+    @media (max-width: 767px) {
+      body { padding-bottom: env(safe-area-inset-bottom); }
+      header { padding-top: max(10px, env(safe-area-inset-top)); }
+      .map-toggle-btn { bottom: calc(20px + env(safe-area-inset-bottom)); }
+    }
+  }
+
+  /* Extra small phones */
+  @media (max-width: 390px) {
+    .cost-summary-grid { grid-template-columns: 1fr; }
+    .apps-grid { grid-template-columns: 1fr; }
+    .header-left h1 { font-size: 0.85rem; }
+    .tab-btn { padding: 9px 10px; font-size: 0.65rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>🐚 산티아고 순례길 — Camino Francés 2026</h1>
+    <p>레온 → 산티아고 데 콤포스텔라 · 299km · 13구간</p>
+  </div>
+  <div class="header-stats">
+    <div class="stat"><div class="stat-val">6/14</div><div class="stat-lbl">출발</div></div>
+    <div class="stat"><div class="stat-val">299km</div><div class="stat-lbl">순례 거리</div></div>
+    <div class="stat"><div class="stat-val">13일</div><div class="stat-lbl">순례 기간</div></div>
+    <div class="stat"><div class="stat-val">7/3</div><div class="stat-lbl">귀국</div></div>
+  </div>
+</header>
+
+<!-- TAB NAV -->
+<nav class="tab-nav">
+  <button class="tab-btn active" id="tab-schedule" onclick="switchTab('schedule')">🗺 일정 &amp; 지도</button>
+  <button class="tab-btn" id="tab-cost" onclick="switchTab('cost')">💰 여행 비용</button>
+  <button class="tab-btn" id="tab-weather" onclick="switchTab('weather')">🌤 날씨 정보</button>
+  <button class="tab-btn" id="tab-checklist" onclick="switchTab('checklist')">🎒 준비물 체크리스트</button>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- PANEL 1: 일정 & 지도 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="panel active" id="panel-schedule">
+  <div class="main">
+    <div class="sidebar" id="sidebar"></div>
+    <div id="map"></div>
+  </div>
+  <div class="legend" id="legend">
+    <div class="legend-title">🗺 범례</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#E8B84B"></div>순례 구간</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#60a5fa"></div>이동/출입국</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#4ade80"></div>확정 숙소</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#94a3b8"></div>미확정 숙소</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f472b6"></div>도착지</div>
+  </div>
+  <!-- Mobile map toggle -->
+  <button class="map-toggle-btn" id="mapToggleBtn" onclick="toggleMap()">
+    🗺️ 지도 숨기기
+  </button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- PANEL 2: 여행 비용 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-cost">
+  <div class="scroll-panel">
+    <div class="section-title">💰 여행 비용 예산</div>
+    <div class="section-sub">모든 금액 1인 기준 · 환율 1€ ≈ ₩1,500 기준 참고</div>
+
+    <!-- 요약 카드 -->
+    <div class="cost-summary-grid">
+      <div class="cost-card confirmed">
+        <div class="cost-card-icon">✈</div>
+        <div class="cost-card-label">항공료 (KLM)</div>
+        <div class="cost-card-amount">₩2,010,600</div>
+        <div class="cost-card-status">✅ 확정 결제</div>
+      </div>
+      <div class="cost-card confirmed">
+        <div class="cost-card-icon">🏨</div>
+        <div class="cost-card-label">CaminoWays 패키지</div>
+        <div class="cost-card-amount">€2,595<br><span style="font-size:0.85rem;color:#4ade80">~₩3,892,500</span></div>
+        <div class="cost-card-status">✅ 확정 결제</div>
+      </div>
+      <div class="cost-card confirmed">
+        <div class="cost-card-icon">🚆</div>
+        <div class="cost-card-label">열차·교통비</div>
+        <div class="cost-card-amount">₩217,320<span style="font-size:0.7rem;color:#4ade80"> + ~₩34k</span></div>
+        <div class="cost-card-status">✅ 기차 4건 확정</div>
+      </div>
+      <div class="cost-card confirmed">
+        <div class="cost-card-icon">🛏</div>
+        <div class="cost-card-label">추가 숙박비 (독립)</div>
+        <div class="cost-card-amount">€240 확정<br><span style="font-size:0.85rem;color:#4ade80">~₩360,000</span></div>
+        <div class="cost-card-status">✅ 6/15 €70 + 6/16 €69 + 7/1 €101</div>
+      </div>
+      <div class="cost-card estimated">
+        <div class="cost-card-icon">🍽</div>
+        <div class="cost-card-label">식비·기타</div>
+        <div class="cost-card-amount">~₩952,500<br><span style="font-size:0.8rem">~₩1,167,000</span></div>
+        <div class="cost-card-status">⬜ 예상</div>
+      </div>
+      <div class="cost-card total">
+        <div class="cost-card-icon">📊</div>
+        <div class="cost-card-label">확정 소계</div>
+        <div class="cost-card-amount">~₩6,483,420</div>
+        <div class="cost-card-status" style="color:var(--yellow)">총 예상 ~₩7,596,320~7,786,320</div>
+      </div>
+    </div>
+
+    <!-- 항공료 -->
+    <div class="cost-section">
+      <div class="cost-section-title">✈ 항공료 <span class="cost-badge confirmed">✅ 확정</span></div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:10px;">KLM 인천 ↔ 마드리드 (암스테르담 환승) Economy — 실제 결제 금액</div>
+      <div class="wrap">
+        <table class="data-table">
+          <thead><tr><th>항목</th><th style="text-align:right">금액 (₩)</th></tr></thead>
+          <tbody>
+            <tr><td>항공권 가격</td><td class="amount-col">₩911,000</td></tr>
+            <tr><td>SAF (대체 항공 연료) 분담금</td><td class="amount-col">₩17,700</td></tr>
+            <tr><td>항공사 도입 국제 추가 요금 (YR)</td><td class="amount-col">₩929,600</td></tr>
+            <tr><td>국제선 서비스 요금·출발세·글로벌 질병 퇴치 기금 (한국)</td><td class="amount-col">₩24,000</td></tr>
+            <tr><td>보안 서비스 수수료 — 네덜란드</td><td class="amount-col">₩42,200</td></tr>
+            <tr><td>승객 서비스료 — 네덜란드</td><td class="amount-col">₩51,400</td></tr>
+            <tr><td>출발 수수료 — 스페인</td><td class="amount-col">₩26,400</td></tr>
+            <tr><td>항공 안전 및 보안 수수료 — 스페인</td><td class="amount-col">₩1,200</td></tr>
+            <tr><td>보안세 — 스페인</td><td class="amount-col">₩7,100</td></tr>
+            <tr class="total-row"><td>항공권 가격 총액</td><td class="amount-col">₩2,010,600</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CaminoWays -->
+    <div class="cost-section">
+      <div class="cost-section-title">🏨 CaminoWays 패키지 <span class="cost-badge confirmed">✅ 확정</span></div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:10px;">R1 — Main Rooming · 1 × Single Room (1 Pax) · 포함: Bed &amp; Breakfast, Luggage Transfers, Dinner</div>
+      <div class="wrap">
+        <table class="data-table">
+          <thead><tr><th>항목</th><th>상세</th><th style="text-align:right">EUR</th><th style="text-align:right">₩</th></tr></thead>
+          <tbody>
+            <tr class="total-row"><td>Single Room 패키지 (1인)</td><td>레온~산티아고 순례 전 구간</td><td class="amount-col">€2,595.00</td><td class="amount-col">~₩3,892,500</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 열차비 -->
+    <div class="cost-section">
+      <div class="cost-section-title">🚆 열차 및 교통비 <span class="cost-badge confirmed">✅ 확정</span></div>
+      <div class="wrap">
+        <table class="data-table">
+          <thead><tr><th>날짜</th><th>구간</th><th>교통수단</th><th>예약코드</th><th style="text-align:right">금액 (₩)</th></tr></thead>
+          <tbody>
+            <tr><td>6/15</td><td>공항 → 프린시페 피오역</td><td>Cercanías C1/C10</td><td style="color:var(--muted)">—</td><td class="amount-col">~₩3,900</td></tr>
+            <tr><td>6/15</td><td>마드리드 피오 → 아빌라<br><span style="font-size:0.65rem;color:var(--muted)">12:25 → 14:05 · Renfe MD 18063</span></td><td></td><td><strong>2SPVDX</strong><span class="confirm-badge">✅</span></td><td class="amount-col">₩24,215</td></tr>
+            <tr><td>6/15</td><td>아빌라 → 살라망카<br><span style="font-size:0.65rem;color:var(--muted)">17:11 → 18:28 · Renfe MD 18907</span></td><td></td><td><strong>WJVVZZ</strong><span class="confirm-badge">✅</span></td><td class="amount-col">₩30,097</td></tr>
+            <tr><td>6/16</td><td>살라망카 → 레온 (바야돌리드 환승)<br><span style="font-size:0.65rem;color:var(--muted)">14:00 → 17:09 · Renfe MD+AVE</span></td><td></td><td><strong>2V7Y36 / MKM57B</strong><span class="confirm-badge">✅</span></td><td class="amount-col">₩94,684</td></tr>
+            <tr><td>7/2</td><td>산티아고 → 마드리드 차마르틴<br><span style="font-size:0.65rem;color:var(--muted)">07:43 → 10:52 · Renfe AVE 04364</span></td><td></td><td><strong>F9RHRJ</strong><span class="confirm-badge">✅</span></td><td class="amount-col">₩68,324</td></tr>
+            <tr><td>기타</td><td>현지 시내 교통</td><td>버스·지하철</td><td style="color:var(--muted)">—</td><td class="amount-col">~₩30,000</td></tr>
+            <tr class="total-row"><td colspan="4">소계 (기차 확정 4건)</td><td class="amount-col">₩217,320 + ~₩33,900</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 추가 숙박비 -->
+    <div class="cost-section">
+      <div class="cost-section-title">🛏 추가 숙박비 (독립 예약) <span class="cost-badge confirmed">✅ 일부 확정</span></div>
+      <div style="font-size:0.72rem;color:var(--muted);margin-bottom:10px;">CaminoWays 패키지에 포함되지 않는 사전·사후 숙박</div>
+      <div class="wrap">
+        <table class="data-table">
+          <thead><tr><th>날짜</th><th>숙소</th><th>위치</th><th style="text-align:right">EUR</th><th style="text-align:right">₩</th></tr></thead>
+          <tbody>
+            <tr><td>6/15</td><td>Hotel Alameda Palace<span class="confirm-badge">✅</span></td><td>살라망카</td><td class="amount-col"><strong>€70</strong></td><td class="amount-col"><strong>~₩105,000</strong></td></tr>
+            <tr><td>6/16</td><td>Hotel Alda Casco Antiguo<span class="confirm-badge">✅</span><br><span style="font-size:0.65rem;color:var(--muted)">6/17과 동일 숙소</span></td><td>레온</td><td class="amount-col"><strong>€69</strong></td><td class="amount-col"><strong>~₩103,500</strong></td></tr>
+            <tr><td>7/1</td><td>Alameda Rooms Santiago<span class="confirm-badge">✅</span><br><span style="font-size:0.65rem;color:var(--muted)">6/30과 동일 숙소</span></td><td>산티아고</td><td class="amount-col"><strong>€101</strong></td><td class="amount-col"><strong>~₩151,500</strong></td></tr>
+            <tr class="total-row"><td colspan="3">소계 (확정)</td><td class="amount-col">€240</td><td class="amount-col">~₩360,000</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 기타 비용 -->
+    <div class="cost-section">
+      <div class="cost-section-title">🍽 기타 비용 <span class="cost-badge estimated">⬜ 예상</span></div>
+      <div class="wrap">
+        <table class="data-table">
+          <thead><tr><th>항목</th><th>상세</th><th style="text-align:right">EUR</th><th style="text-align:right">₩</th></tr></thead>
+          <tbody>
+            <tr><td>식비</td><td>순례 기간 점심·저녁 (~€15~20/일 × 20일)</td><td class="amount-col">~€300~400</td><td class="amount-col">~₩450,000~600,000</td></tr>
+            <tr><td>음료·카페</td><td>커피, 맥주, 와인 등</td><td class="amount-col">~€60</td><td class="amount-col">~₩90,000</td></tr>
+            <tr><td>관광·입장료</td><td>살라망카 대학, 레온 성당 등</td><td class="amount-col">~€30</td><td class="amount-col">~₩45,000</td></tr>
+            <tr><td>콤포스텔라 순례 증서</td><td>산티아고 순례자 사무소</td><td class="amount-col">€3</td><td class="amount-col">~₩4,500</td></tr>
+            <tr><td>순례자 여권 (Credencial)</td><td>한국 또는 현지 구입</td><td class="amount-col">~€2~5</td><td class="amount-col">~₩3,000~7,500</td></tr>
+            <tr><td>의약품·응급 물품</td><td>물집 패치, 진통제 등 현지 보충</td><td class="amount-col">~€20</td><td class="amount-col">~₩30,000</td></tr>
+            <tr><td>기념품·쇼핑</td><td>산티아고 기념품 등</td><td class="amount-col">~€50</td><td class="amount-col">~₩75,000</td></tr>
+            <tr><td>여행자 보험</td><td>카미노 특화 보험 (20일)</td><td class="amount-col">~€50~80</td><td class="amount-col">~₩75,000~120,000</td></tr>
+            <tr><td>통신비</td><td>유럽 로밍 또는 현지 유심</td><td class="amount-col">~€20~30</td><td class="amount-col">~₩30,000~45,000</td></tr>
+            <tr><td>예비비</td><td>돌발 상황 대비</td><td class="amount-col">~€100</td><td class="amount-col">~₩150,000</td></tr>
+            <tr class="total-row"><td colspan="2">소계</td><td class="amount-col">~€635~778</td><td class="amount-col">~₩952,500~1,167,000</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="background:rgba(232,184,75,0.07);border:1px solid rgba(232,184,75,0.2);border-radius:10px;padding:14px 18px;font-size:0.78rem;color:var(--muted);line-height:1.6;">
+      💡 <strong style="color:var(--yellow)">절약 팁</strong>: 알베르게(공립) 이용 시 CaminoWays 패키지 없이 숙박비를 €15~20/박으로 절약 가능. 반면 짐 배송 없이 직접 배낭을 메면 체력 소모가 크게 증가합니다.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- PANEL 3: 날씨 정보 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-weather">
+  <div class="scroll-panel">
+    <div class="section-title">🌤 여행 기간 현지 날씨 정보</div>
+    <div class="section-sub">6월 하순~7월 초 기준 월평균 기후 데이터 (기상 통계 기반, 실제 날씨와 다를 수 있음)</div>
+
+    <!-- 날씨 카드 그리드 -->
+    <div class="weather-grid">
+      <div class="weather-card">
+        <div class="weather-card-header">
+          <div><div class="weather-card-place">✈ 마드리드</div><div class="weather-card-date">6/15, 7/2</div></div>
+          <div class="weather-card-icon">☀️</div>
+        </div>
+        <div class="weather-temps">
+          <div class="temp-item"><div class="temp-val temp-high">30°C</div><div class="temp-lbl">최고</div></div>
+          <div class="temp-item"><div class="temp-val temp-low">17°C</div><div class="temp-lbl">최저</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#a78bfa">~4일</div><div class="temp-lbl">강수 일수</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#60a5fa">20mm</div><div class="temp-lbl">월 강수량</div></div>
+        </div>
+        <div class="weather-detail">맑고 건조, 강한 햇볕 · UV 지수 매우 높음</div>
+        <div class="weather-tip">💡 자외선 차단제·선글라스 필수, 야외 관광 시 수분 섭취 주의</div>
+      </div>
+
+      <div class="weather-card">
+        <div class="weather-card-header">
+          <div><div class="weather-card-place">🏰 아빌라</div><div class="weather-card-date">6/15</div></div>
+          <div class="weather-card-icon">☀️</div>
+        </div>
+        <div class="weather-temps">
+          <div class="temp-item"><div class="temp-val temp-high">26°C</div><div class="temp-lbl">최고</div></div>
+          <div class="temp-item"><div class="temp-val temp-low">10°C</div><div class="temp-lbl">최저</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#a78bfa">~6일</div><div class="temp-lbl">강수 일수</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#60a5fa">30mm</div><div class="temp-lbl">월 강수량</div></div>
+        </div>
+        <div class="weather-detail">대체로 맑음, 아침 서늘 · 해발 1,130m 고지대</div>
+        <div class="weather-tip">💡 아침 기온 낮으므로 가벼운 겉옷 준비</div>
+      </div>
+
+      <div class="weather-card">
+        <div class="weather-card-header">
+          <div><div class="weather-card-place">🎓 살라망카</div><div class="weather-card-date">6/15~16</div></div>
+          <div class="weather-card-icon">☀️</div>
+        </div>
+        <div class="weather-temps">
+          <div class="temp-item"><div class="temp-val temp-high">27°C</div><div class="temp-lbl">최고</div></div>
+          <div class="temp-item"><div class="temp-val temp-low">11°C</div><div class="temp-lbl">최저</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#a78bfa">~5일</div><div class="temp-lbl">강수 일수</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#60a5fa">14~25mm</div><div class="temp-lbl">월 강수량</div></div>
+        </div>
+        <div class="weather-detail">맑고 건조, 저녁 선선 · 야외 타파스 즐기기 좋음</div>
+        <div class="weather-tip">💡 저녁에는 가벼운 겉옷 필요</div>
+      </div>
+
+      <div class="weather-card">
+        <div class="weather-card-header">
+          <div><div class="weather-card-place">🏙 레온</div><div class="weather-card-date">6/16~17</div></div>
+          <div class="weather-card-icon">🌤</div>
+        </div>
+        <div class="weather-temps">
+          <div class="temp-item"><div class="temp-val temp-high">25°C</div><div class="temp-lbl">최고</div></div>
+          <div class="temp-item"><div class="temp-val temp-low">11°C</div><div class="temp-lbl">최저</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#a78bfa">~8일</div><div class="temp-lbl">강수 일수</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#60a5fa">38~48mm</div><div class="temp-lbl">월 강수량</div></div>
+        </div>
+        <div class="weather-detail">맑음, 간헐적 소나기 가능 · 스페인 북부 선선한 여름</div>
+        <div class="weather-tip">💡 저녁에는 가벼운 겉옷 필요</div>
+      </div>
+
+      <div class="weather-card" style="border-color:rgba(249,115,22,0.3)">
+        <div class="weather-card-header">
+          <div><div class="weather-card-place">🐚 메세타 구간</div><div class="weather-card-date">6/18~22</div></div>
+          <div class="weather-card-icon">☀️</div>
+        </div>
+        <div class="weather-temps">
+          <div class="temp-item"><div class="temp-val" style="color:#ef4444">35°C</div><div class="temp-lbl">최고</div></div>
+          <div class="temp-item"><div class="temp-val temp-low">11°C</div><div class="temp-lbl">최저</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#a78bfa">~7일</div><div class="temp-lbl">강수 일수</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#60a5fa">25~40mm</div><div class="temp-lbl">월 강수량</div></div>
+        </div>
+        <div class="weather-detail">강한 햇볕·열기 · 그늘 거의 없는 노출 구간 · 하루 14시간 이상 일조</div>
+        <div class="weather-warn">⚠️ 05:00 출발 엄수! 수분 시간당 500ml · 모자·선크림 없이 걷는 것은 위험</div>
+      </div>
+
+      <div class="weather-card">
+        <div class="weather-card-header">
+          <div><div class="weather-card-place">⛰ 아스토르가~라바날</div><div class="weather-card-date">6/19~20</div></div>
+          <div class="weather-card-icon">🌤</div>
+        </div>
+        <div class="weather-temps">
+          <div class="temp-item"><div class="temp-val temp-high">25°C</div><div class="temp-lbl">최고</div></div>
+          <div class="temp-item"><div class="temp-val temp-low">9°C</div><div class="temp-lbl">최저</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#a78bfa">~8일</div><div class="temp-lbl">강수 일수</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#60a5fa">37mm</div><div class="temp-lbl">월 강수량</div></div>
+        </div>
+        <div class="weather-detail">온화, 고도 상승으로 서늘해짐</div>
+        <div class="weather-tip">💡 고도 상승에 따라 기온 급격히 하강</div>
+      </div>
+
+      <div class="weather-card">
+        <div class="weather-card-header">
+          <div><div class="weather-card-place">🏔 크루즈 데 페로·폰페라다</div><div class="weather-card-date">6/21~22</div></div>
+          <div class="weather-card-icon">🌤</div>
+        </div>
+        <div class="weather-temps">
+          <div class="temp-item"><div class="temp-val temp-high">25°C</div><div class="temp-lbl">최고</div></div>
+          <div class="temp-item"><div class="temp-val temp-low">11°C</div><div class="temp-lbl">최저</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#a78bfa">~9일</div><div class="temp-lbl">강수 일수</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#60a5fa">37~50mm</div><div class="temp-lbl">월 강수량</div></div>
+        </div>
+        <div class="weather-detail">변덕스러움, 산악 소나기 주의 · 내리막 무릎 부담 주의</div>
+        <div class="weather-warn">⚠️ 무릎 보호대 착용 및 트레킹 스틱 강력 권장</div>
+      </div>
+
+      <div class="weather-card" style="border-color:rgba(96,165,250,0.3)">
+        <div class="weather-card-header">
+          <div><div class="weather-card-place">🌄 오 세브레이로 (1,300m)</div><div class="weather-card-date">6/23</div></div>
+          <div class="weather-card-icon">🌧</div>
+        </div>
+        <div class="weather-temps">
+          <div class="temp-item"><div class="temp-val temp-high">23°C</div><div class="temp-lbl">최고</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#60a5fa">9°C</div><div class="temp-lbl">최저</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#a78bfa">~10일</div><div class="temp-lbl">강수 일수</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#60a5fa">60~80mm</div><div class="temp-lbl">월 강수량</div></div>
+        </div>
+        <div class="weather-detail">안개·비 잦음 · 기온 급강하 · 스페인 내륙→대서양 기후 전환점</div>
+        <div class="weather-warn">⚠️ 방풍 재킷+보온 레이어 필수 · 안개 시 황색 화살표 집중</div>
+      </div>
+
+      <div class="weather-card">
+        <div class="weather-card-header">
+          <div><div class="weather-card-place">🍀 갈리시아 구간</div><div class="weather-card-date">6/24~29</div></div>
+          <div class="weather-card-icon">🌦</div>
+        </div>
+        <div class="weather-temps">
+          <div class="temp-item"><div class="temp-val temp-high">23°C</div><div class="temp-lbl">최고</div></div>
+          <div class="temp-item"><div class="temp-val temp-low">11°C</div><div class="temp-lbl">최저</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#a78bfa">~10일</div><div class="temp-lbl">강수 일수</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#60a5fa">60~75mm</div><div class="temp-lbl">월 강수량</div></div>
+        </div>
+        <div class="weather-detail">맑다가 갑자기 소나기 패턴 반복 · 초록 풍경의 이유</div>
+        <div class="weather-tip">💡 우비(폰초) 배낭 최상단에 항상 꺼내두기</div>
+      </div>
+
+      <div class="weather-card">
+        <div class="weather-card-header">
+          <div><div class="weather-card-place">🎉 산티아고 데 콤포스텔라</div><div class="weather-card-date">6/30~7/1</div></div>
+          <div class="weather-card-icon">🌦</div>
+        </div>
+        <div class="weather-temps">
+          <div class="temp-item"><div class="temp-val temp-high">24°C</div><div class="temp-lbl">최고</div></div>
+          <div class="temp-item"><div class="temp-val temp-low">13°C</div><div class="temp-lbl">최저</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#a78bfa">~10일</div><div class="temp-lbl">강수 일수</div></div>
+          <div class="temp-item"><div class="temp-val" style="color:#60a5fa">64mm</div><div class="temp-lbl">월 강수량</div></div>
+        </div>
+        <div class="weather-detail">대서양 기후 · 여름에도 가랑비·흐린 날 빈번</div>
+        <div class="weather-tip">💡 날씨와 무관하게 대성당 광장에서 감동의 순간!</div>
+      </div>
+    </div>
+
+    <!-- 전체 기간 타임라인 -->
+    <div class="cost-section-title" style="margin-bottom:12px">🌡 전체 기간 날씨 흐름</div>
+    <div class="wrap" style="margin-bottom:32px">
+      <div style="display:grid;grid-template-columns:70px 160px 80px 1fr;gap:8px;padding:8px 12px;background:rgba(232,184,75,0.08);font-size:0.65rem;font-weight:700;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase">
+        <div>날짜</div><div>구간</div><div>낮 기온</div><div>강수 위험</div>
+      </div>
+      <div id="weather-timeline"></div>
+    </div>
+
+    <!-- 날씨별 대처법 -->
+    <div class="cost-section-title" style="margin-bottom:12px">🎒 날씨별 준비 팁</div>
+    <div class="wrap">
+      <table class="data-table">
+        <thead><tr><th>상황</th><th>대처법</th></tr></thead>
+        <tbody>
+          <tr><td>☀️ 메세타 강한 햇볕</td><td>챙 넓은 모자, SPF50+ 선크림, 수분 팩, 소금 사탕</td></tr>
+          <tr><td>🌡 35°C 폭염 가능</td><td>05:00 출발 엄수, 11:00~15:00 이동 자제, 카페에서 쉬기</td></tr>
+          <tr><td>🌧 갈리시아 소나기</td><td>폰초/우비 배낭 최상단에 항상 꺼내두기</td></tr>
+          <tr><td>🌫 오 세브레이로 안개</td><td>트레킹 폴로 지면 확인, 황색 화살표 집중</td></tr>
+          <tr><td>🥶 고산 야간 저체온</td><td>기능성 베이스레이어 + 방풍 재킷 착용</td></tr>
+          <tr><td>💧 전 구간 공통</td><td>물통 항상 가득, 마을별 식수대(fuente) 미리 확인</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- PANEL 4: 준비물 체크리스트 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-checklist">
+  <div class="scroll-panel">
+    <div class="section-title">🎒 카미노 준비사항 체크리스트</div>
+    <div class="section-sub">우선순위 순 정렬 — 🔴 필수 / 🟡 권장 / 🟢 선택</div>
+
+    <!-- 진행률 -->
+    <div style="background:var(--card);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:16px 20px;margin-bottom:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="font-size:0.85rem;font-weight:700;color:var(--text)">전체 진행률</span>
+        <span id="progress-pct" style="font-size:0.9rem;font-weight:700;color:var(--yellow)">0%</span>
+      </div>
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+      <div class="progress-label" id="progress-label">0 / 0 항목 완료</div>
+    </div>
+
+    <div class="checklist-grid" id="checklist-grid"></div>
+
+    <!-- 필수 앱 -->
+    <div class="cost-section-title" style="margin-top:8px;margin-bottom:16px">📱 필수 앱</div>
+    <div class="apps-grid">
+      <div class="app-card">
+        <div class="app-icon">🧭</div>
+        <div><div class="app-name">Buen Camino</div><div class="app-desc">카미노 공식 내비게이션, 오프라인 지도</div><div class="app-free">무료</div></div>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">🏠</div>
+        <div><div class="app-name">Gronze</div><div class="app-desc">알베르게 정보 및 리뷰</div><div class="app-free">무료</div></div>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">🗺</div>
+        <div><div class="app-name">Google Maps</div><div class="app-desc">오프라인 지도 사전 다운로드</div><div class="app-free">무료</div></div>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">🚆</div>
+        <div><div class="app-name">Renfe</div><div class="app-desc">스페인 기차 예약</div><div class="app-free">무료</div></div>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">💱</div>
+        <div><div class="app-name">XE Currency</div><div class="app-desc">환율 계산기</div><div class="app-free">무료</div></div>
+      </div>
+      <div class="app-card">
+        <div class="app-icon">🦜</div>
+        <div><div class="app-name">Duolingo (스페인어)</div><div class="app-desc">기초 스페인어 — Buen Camino!</div><div class="app-free">출발 전 학습</div></div>
+      </div>
+    </div>
+
+    <!-- 핵심 주의사항 -->
+    <div class="warn-box" style="margin-bottom:32px">
+      <div class="warn-box-title">⚠️ 핵심 주의사항</div>
+      <div class="warn-item">배낭 무게가 여행의 성패를 좌우합니다 — 꼭 필요한 것만 챙기세요</div>
+      <div class="warn-item">신발 길들이기 필수 — 새 신발로 32km 걷으면 심각한 물집 발생</div>
+      <div class="warn-item">크루즈 데 페로 (D8): 무릎 보호대 착용 및 스틱 사용 강력 권장</div>
+      <div class="warn-item">오 세브레이로 (D10): 최대 난이도 구간, 체력 안배 필수</div>
+      <div class="warn-item">사리아 (D12)부터: 콤포스텔라 발급을 위해 매일 최소 2개 스탬프 필수</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── TAB SWITCHING ──────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+  if (name === 'schedule') { setTimeout(() => map.invalidateSize(), 50); }
+  if (name === 'checklist') { updateProgress(); }
+}
+
+// ── STAGE DATA ─────────────────────────────────────────────────
+const stages = [
+  {
+    id:'d1', phase:'transit', date:'6/14 (일)', title:'출국 — 인천 출발',
+    coords:[37.4602, 126.4407],
+    items:['22:25 인천(ICN) 출발 — KLM KL0856 (Boeing 787-9, Economy)','D+1 05:10 암스테르담 스키폴(AMS) 도착 · 환승 대기 1시간 50분','D+1 07:00 암스테르담 출발 — KLM KL1501 (Economy)','D+1 09:30 마드리드(MAD) 도착'],
+    acc:null
+  },
+  {
+    id:'d2', phase:'transit', date:'6/15 (월)', title:'마드리드 도착 → 아빌라 → 살라망카',
+    coords:[40.9701, -5.6635],
+    items:['09:30 MAD 도착 · 입국심사 (~1.5h)','10:30~11:15 T4 → 차마르틴역 → 프린시페 피오역 이동 (Cercanías C1/C10, €2.60)','12:25 🚆 마드리드 프린시페 피오 출발 → 아빌라 도착 14:05 (Renfe MD | 18063, 1h40) ✅ 예약코드: 2SPVDX · ₩24,215','14:05~17:00 🏰 아빌라 성벽(2.5km) · 예마스 시식 · 콰트로 포스텔 전망대','17:11 🚆 아빌라 출발 → 살라망카역 도착 18:28 (Renfe MD | 18907, 1h17) ✅ 예약코드: WJVVZZ · ₩30,097','19:00~ 숙소 체크인 · 마요르 광장 야경 · 타파스 & 와인'],
+    acc:{name:'Hotel Alameda Palace', status:'confirmed', addr:'Paseo de la Estación, 1, 37004 살라망카, 스페인', phone:'+34 923 28 26 26', confirm:'5986698206', checkin:'15:00 / 체크아웃 12:00'}
+  },
+  {
+    id:'d3', phase:'transit', date:'6/16 (화)', title:'🎓 살라망카 오전 관광 & 레온 이동',
+    coords:[42.5987, -5.5671],
+    items:['09:00~12:30 살라망카 대학(1218년) — 파사드의 "행운의 개구리" 찾기','신·구 대성당 — 파사드의 "우주비행사" 부조 찾기','조개의 집(Casa de las Conchas) — 외벽 300개 조개껍데기','12:30~13:30 점심 — 오르나소(Hornazo) 전통 고기 파이','14:00 🚆 살라망카역 출발 → 바야돌리드-캄포그란데역 도착 15:37 (Renfe MD | 18306, 1h37) — 경유 대기 24분','16:01 🚆 바야돌리드 출발 → 레온역 도착 17:09 (Renfe AVE | 04151, 1h08) ✅ 예약코드: 2V7Y36 / MKM57B · ₩94,684','17:30 전후 레온 도착 · 체크인 · 구시가지 저녁 산책'],
+    acc:{name:'Hotel Alda Casco Antiguo', status:'confirmed', addr:'Calle Cardenal Landázuri 11, León', phone:'+34 633 961 598', note:'6/17과 동일 숙소 · €69 / 1박'}
+  },
+  {
+    id:'d4', phase:'rest', date:'6/17 (수)', title:'레온 휴식일 — 순례 준비',
+    coords:[42.5987, -5.5671],
+    items:['오전 León Cathedral · Basílica de San Isidoro','오후 순례자 여권(Credencial) 확인 · 장비 점검','저녁 카페에서 휴식 · 일찍 취침'],
+    acc:{name:'Hotel Alda Casco Antiguo', status:'confirmed', addr:'Calle Cardenal Landázuri 11, León', phone:'+34 633 961 598'}
+  },
+  {
+    id:'d5', phase:'camino', date:'6/18 (목)', title:'레온 → 마사리페',
+    distance:'21km', arrival:'10:30~11:00',
+    coords:[42.4857, -5.7833],
+    items:['05:00 레온 출발 (헤드랜턴 착용)','평탄한 메세타 구간'],
+    acc:{name:'El Molino del Sol', status:'confirmed', addr:'Leon, Villavante, 24393, Spain', phone:'+34 684 778 600', note:'마사리페 내 시설 부족으로 인근 Villavante 배정'}
+  },
+  {
+    id:'d6', phase:'camino', date:'6/19 (금)', title:'마사리페 → 아스토르가',
+    distance:'31km', arrival:'13:00~14:00',
+    coords:[42.4588, -6.0557],
+    items:['05:00 출발','Hospital de Órbigo 경유 (중세 다리)'],
+    acc:{name:'Astur Plaza Astorga', status:'confirmed', addr:'Plaza de España 2, Astorga', phone:'+34 987 618 900'}
+  },
+  {
+    id:'d7', phase:'camino', date:'6/20 (토)', title:'아스토르가 → 라바날 델 카미노',
+    distance:'20km', arrival:'10:30~11:00',
+    coords:[42.4679, -6.2849],
+    items:['05:00 출발','서서히 고도 상승 시작'],
+    acc:{name:'The Pilgrim Stone B&B', status:'confirmed', addr:'C. Real, 7a, Rabanal del Camino, 24722, Spain', phone:'+34 654 824 876', note:'체크인 17:30까지 / 늦을 경우 사전 연락 필수'}
+  },
+  {
+    id:'d8', phase:'camino', date:'6/21 (일)', title:'라바날 → 폰페라다',
+    distance:'32km', arrival:'14:00~15:00',
+    note:'⚡ 크루즈 데 페로 통과 — 오르막 후 긴 내리막',
+    coords:[42.5465, -6.5962],
+    items:['05:00 출발','Cruz de Ferro (1504m) 통과','내리막 주의 (무릎 보호대 권장)'],
+    acc:{name:'폰페라다 숙소', status:'unconfirmed', addr:'Ponferrada, León', phone:null}
+  },
+  {
+    id:'d9', phase:'camino', date:'6/22 (월)', title:'폰페라다 → 비야프랑카 델 비에르소',
+    distance:'24km', arrival:'11:30~12:30',
+    coords:[42.6057, -6.8106],
+    items:['05:00 출발','Cacabelos 포도밭 경유'],
+    acc:{name:'비야프랑카 숙소', status:'unconfirmed', addr:'Villafranca del Bierzo, León', phone:null}
+  },
+  {
+    id:'d10', phase:'camino', date:'6/23 (화)', title:'비야프랑카 → 오 세브레이로',
+    distance:'30km', arrival:'14:30~15:30',
+    note:'🏔 최대 난이도 — 가파른 오르막 (약 900m 고도 상승)',
+    coords:[42.7082, -7.0432],
+    items:['05:00 출발','스페인 → 갈리시아 지방 진입','오 세브레이로 (1300m) 도착'],
+    acc:{name:'Casa Carolo O Cebreiro', status:'confirmed', addr:'Rua Cebreiro, 20, O Cebreiro, 27670, Spain', phone:'+34 982 367 168', note:'체크인 13:00~19:00 / 늦게 도착 시 반드시 사전 연락'}
+  },
+  {
+    id:'d11', phase:'camino', date:'6/24 (수)', title:'오 세브레이로 → 트리아카스텔라',
+    distance:'21km', arrival:'10:30~11:30',
+    coords:[42.7561, -7.2355],
+    items:['05:00 출발','주로 내리막 (무릎 주의)','갈리시아 녹색 풍경'],
+    acc:{name:'Hotel Triacastela', status:'confirmed', addr:'Av. Camilo José Cela, 28, Triacastela, 27630, Spain', phone:'+34 982 650 061'}
+  },
+  {
+    id:'d12', phase:'camino', date:'6/25 (목)', title:'트리아카스텔라 → 사리아',
+    distance:'19km', arrival:'10:00~11:00',
+    coords:[42.7816, -7.4137],
+    items:['05:00 출발','사리아 = 100km 인증 시작점','Credencial 스탬프 필수'],
+    acc:{name:'Hotel Villa de Sarria', status:'confirmed', addr:'C/ Benigno Quiroga 49, Sarria', phone:'+34 982 533 873'}
+  },
+  {
+    id:'d13', phase:'camino', date:'6/26 (금)', title:'사리아 → 포르토마린',
+    distance:'22km', arrival:'11:00~12:00',
+    coords:[42.8077, -7.6162],
+    items:['05:00 출발','Miño 강 댐 다리 건너기','포르토마린 입성'],
+    acc:{name:'Villajardin Portomarin', status:'confirmed', addr:'Rua do Mino 14, Portomarin', phone:'+34 982 545 054'}
+  },
+  {
+    id:'d14', phase:'camino', date:'6/27 (토)', title:'포르토마린 → 팔라스 데 레이',
+    distance:'22km', arrival:'11:00~12:00',
+    coords:[42.8732, -7.8692],
+    items:['05:00 출발','완만한 갈리시아 언덕길'],
+    acc:{name:'Hotel Alda Palas de Reis', status:'confirmed', addr:'C/ Dr. Pardo Ouro 4, Palas de Rei', phone:'+34 607 577 539'}
+  },
+  {
+    id:'d15', phase:'camino', date:'6/28 (일)', title:'팔라스 데 레이 → 아르수아',
+    distance:'28km', arrival:'12:30~13:30',
+    coords:[42.9285, -8.1605],
+    items:['05:00 출발','Melide 문어 요리(Pulpo) 추천 점심'],
+    acc:{name:'Hotel Arzua', status:'confirmed', addr:'Rua Lugo 132, Arzua', phone:'+34 689 969 996'}
+  },
+  {
+    id:'d16', phase:'camino', date:'6/29 (월)', title:'아르수아 → 아메날 (오 페드로우소)',
+    distance:'23km', arrival:'11:00~12:00',
+    coords:[42.9038, -8.3652],
+    items:['05:00 출발','내일 산티아고 도착을 위한 마지막 준비'],
+    acc:{name:'Hotel Amenal Amenal', status:'confirmed', addr:'Calle Amenal, 12., O Pino, 15821, Spain', phone:'+34 981 510 431', note:'B&B · Dinner 포함 · hotelbello@hotelbello.es'}
+  },
+  {
+    id:'d17', phase:'arrival', date:'6/30 (화)', title:'🎉 아메날 → 산티아고 데 콤포스텔라',
+    distance:'16km', arrival:'09:00~10:00',
+    coords:[42.8782, -8.5448],
+    items:['05:00 마지막 출발','09:00~10:00 산티아고 대성당 도착 🎉','콤포스텔라(순례 증서) 수령','오후 대성당 · 구시가지 방문'],
+    acc:{name:'Alameda Rooms Santiago', status:'confirmed', addr:'San Clemente 32, Santiago de Compostela', phone:'+34 981 588 100'}
+  },
+  {
+    id:'d18', phase:'rest', date:'7/1 (수)', title:'산티아고 완전 휴식',
+    coords:[42.8782, -8.5448],
+    items:['12:00 순례자 미사 (보타푸메이로 관람)','오후 구시가지 · 시장 산책','저녁 해산물 요리'],
+    acc:{name:'Alameda Rooms Santiago', status:'confirmed', addr:'San Clemente 32, Santiago de Compostela', phone:'+34 981 588 100', note:'6/30과 동일 숙소 · €101 / 1박'}
+  },
+  {
+    id:'d19', phase:'transit', date:'7/2 (목)', title:'귀국 — 마드리드 경유',
+    coords:[40.4168, -3.7038],
+    items:['07:43 🚆 산티아고 다니엘 카스텔라우 역 출발 → 마드리드 차마르틴역 도착 10:52 (Renfe AVE | 04364, 3h09) ✅ 예약코드: F9RHRJ · ₩68,324','11:00~16:00 마드리드 도착 · 점심 · 마지막 관광','17:20 마드리드(MAD) 출발 — KLM KL1506 (Economy)','19:50 암스테르담(AMS) 도착 · 환승 1시간 45분','21:35 암스테르담(AMS) 출발 — KLM KL0855 (Boeing 787-9)'],
+    acc:null
+  },
+  {
+    id:'d20', phase:'transit', date:'7/3 (금)', title:'인천 도착',
+    coords:[37.4602, 126.4407],
+    items:['16:25 인천(ICN) 도착 🏠'],
+    acc:null
+  }
+];
+
+// ── BUILD SIDEBAR ──────────────────────────────────────────────
+const sidebar = document.getElementById('sidebar');
+let currentPhase = '';
+const phaseLabels = {
+  transit:'✈ 이동 구간', camino:'🐚 카미노 순례', rest:'😴 휴식일', arrival:'🎉 산티아고 도착'
+};
+
+stages.forEach((s) => {
+  if (s.phase !== currentPhase) {
+    currentPhase = s.phase;
+    const ph = document.createElement('div');
+    ph.className = `phase-header ${s.phase === 'arrival' ? 'camino' : s.phase}`;
+    ph.textContent = phaseLabels[s.phase] || s.phase;
+    sidebar.appendChild(ph);
+  }
+  const card = document.createElement('div');
+  card.className = 'day-card';
+  card.id = 'card-' + s.id;
+
+  const badgeClass = s.phase === 'arrival' ? 'badge-arrival' : `badge-${s.phase}`;
+  const badgeLabel = s.phase === 'camino' ? '순례' : s.phase === 'transit' ? '이동' : s.phase === 'arrival' ? '도착' : '휴식';
+
+  let accHTML = '';
+  if (s.acc) {
+    const cls = s.acc.status === 'confirmed' ? 'acc-confirmed' : 'acc-unconfirmed';
+    const icon = s.acc.status === 'confirmed' ? '✅' : '⬜';
+    const detailParts = [
+      s.acc.addr,
+      s.acc.phone ? `📞 ${s.acc.phone}` : '',
+      s.acc.confirm ? `🔖 확인번호: ${s.acc.confirm}` : '',
+      s.acc.checkin ? `⏰ 체크인 ${s.acc.checkin}` : '',
+      s.acc.note ? `📌 ${s.acc.note}` : ''
+    ].filter(Boolean);
+    const detail = detailParts.join('<br>');
+    accHTML = `<div class="accommodation ${cls}">
+      <div class="acc-icon">${icon}</div>
+      <div>
+        <div class="acc-name">${s.acc.name}</div>
+        ${detail ? `<div class="acc-detail">${detail}</div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  card.innerHTML = `
+    <div class="day-card-header">
+      <span class="day-badge ${badgeClass}">${badgeLabel}</span>
+      <span class="day-date">${s.date}</span>
+      ${s.distance ? `<span style="font-size:0.65rem;color:var(--orange);margin-left:auto">${s.distance}</span>` : ''}
+    </div>
+    <div class="day-title">${s.title}</div>
+    ${s.note ? `<div class="day-note">${s.note}</div>` : ''}
+    <div class="day-items">${s.items.map(it=>`<div class="day-item">${it}</div>`).join('')}</div>
+    ${accHTML}
+  `;
+  card.addEventListener('click', () => focusStage(s.id));
+  sidebar.appendChild(card);
+});
+
+// ── INIT MAP ───────────────────────────────────────────────────
+const map = L.map('map', { zoomControl:false, attributionControl:false }).setView([42.0, -5.5], 6);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom:19 }).addTo(map);
+L.control.zoom({ position:'topright' }).addTo(map);
+
+const caminoRoute = [
+  [42.5987,-5.5671],[42.553,-5.627],[42.4857,-5.7833],
+  [42.468,-5.878],[42.4588,-6.0557],[42.4679,-6.2849],
+  [42.4831,-6.3611],[42.5465,-6.5962],[42.6057,-6.8106],
+  [42.7082,-7.0432],[42.7561,-7.2355],[42.7816,-7.4137],
+  [42.8077,-7.6162],[42.8732,-7.8692],[42.9285,-8.1605],
+  [42.9038,-8.3652],[42.8782,-8.5448]
+];
+L.polyline(caminoRoute, { color:'#E8B84B', weight:3, opacity:0.7, dashArray:'8 4' }).addTo(map);
+L.polyline([[37.4602,126.4407],[40.4168,-3.7038],[40.6566,-4.6818],[40.9701,-5.6635],[42.5987,-5.5671]], {
+  color:'#60a5fa', weight:1.5, opacity:0.4, dashArray:'4 6'
+}).addTo(map);
+
+function makeIcon(color, size=10) {
+  return L.divIcon({
+    html:`<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.8);box-shadow:0 0 8px ${color}66"></div>`,
+    className:'', iconSize:[size,size], iconAnchor:[size/2,size/2]
+  });
+}
+function makeStarIcon(color) {
+  return L.divIcon({
+    html:`<div style="width:20px;height:20px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 0 16px ${color},0 0 32px ${color}66;display:flex;align-items:center;justify-content:center;font-size:10px">🏁</div>`,
+    className:'', iconSize:[20,20], iconAnchor:[10,10]
+  });
+}
+
+const markers = {};
+stages.forEach(s => {
+  if (!s.coords) return;
+  const isConfirmed = s.acc && s.acc.status === 'confirmed';
+  const isArrival = s.phase === 'arrival';
+  const isCamino = s.phase === 'camino';
+  let icon;
+  if (isArrival) icon = makeStarIcon('#f472b6');
+  else if (isConfirmed) icon = makeIcon('#4ade80', 12);
+  else if (isCamino) icon = makeIcon('#E8B84B', 9);
+  else if (s.phase === 'transit') icon = makeIcon('#60a5fa', 8);
+  else icon = makeIcon('#a78bfa', 10);
+
+  const accInfo = s.acc ? (
+    isConfirmed
+      ? `<div class="popup-hotel">🏨 ${s.acc.name}</div>${s.acc.addr?`<div class="popup-addr">📍 ${s.acc.addr}</div>`:''}${s.acc.phone?`<div class="popup-phone">📞 ${s.acc.phone}</div>`:''}`
+      : `<div class="popup-hotel" style="color:#94a3b8">⬜ ${s.acc.name} (미확정)</div>`
+  ) : '';
+
+  const popupContent = `<div>
+    <div class="popup-date">${s.date}</div>
+    <div class="popup-title">${s.title}</div>
+    ${s.distance ? `<div class="popup-dist">🚶 ${s.distance} · 도착 ${s.arrival}</div>` : ''}
+    ${accInfo}
+  </div>`;
+
+  const marker = L.marker(s.coords, {icon}).addTo(map).bindPopup(popupContent, {maxWidth:220, className:''});
+  markers[s.id] = marker;
+});
+
+L.marker([40.6566, -4.6818], {icon: makeIcon('#f59e0b', 12)}).addTo(map)
+  .bindPopup(`<div>
+    <div class="popup-date">6/15 (월) — 경유 관광지</div>
+    <div class="popup-title">🏰 아빌라 (Ávila)</div>
+    <div class="popup-addr">중세 성벽의 도시 · 14:05~17:00</div>
+    <div class="popup-addr">· 아빌라 성벽(Muralla) 2.5km 산책</div>
+    <div class="popup-addr">· 예마스(Yemas de Santa Teresa) 시식</div>
+    <div class="popup-addr">· 콰트로 포스테스(Cuatro Postes) 전망대</div>
+  </div>`, {maxWidth:220, className:''});
+
+function focusStage(id) {
+  document.querySelectorAll('.day-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('card-'+id)?.classList.add('active');
+  const s = stages.find(x => x.id === id);
+  if (!s || !s.coords) return;
+  const zoom = s.phase === 'camino' || s.phase === 'arrival' || s.phase === 'rest' ? 13 : 8;
+  map.flyTo(s.coords, zoom, {duration:1.2});
+  setTimeout(() => { markers[id]?.openPopup(); }, 1200);
+}
+
+setTimeout(() => {
+  map.flyToBounds(L.latLngBounds(caminoRoute), {padding:[40,40], duration:1.5});
+}, 300);
+
+// ── WEATHER TIMELINE ───────────────────────────────────────────
+const weatherData = [
+  {date:'6/15', place:'마드리드·아빌라', temp:'28~30°C', rain:'☀️ 낮음'},
+  {date:'6/16', place:'살라망카 → 레온', temp:'25~27°C', rain:'☀️ 낮음'},
+  {date:'6/17', place:'레온 (휴식)', temp:'23~25°C', rain:'🌤 보통'},
+  {date:'6/18', place:'레온 → 마사리페', temp:'25~32°C', rain:'☀️ 낮음 (더위 주의)'},
+  {date:'6/19', place:'마사리페 → 아스토르가', temp:'24~30°C', rain:'☀️ 낮음 (더위 주의)'},
+  {date:'6/20', place:'아스토르가 → 라바날', temp:'24~25°C', rain:'🌤 보통'},
+  {date:'6/21', place:'라바날 → 폰페라다', temp:'23~28°C', rain:'🌤 보통 (산악 소나기)'},
+  {date:'6/22', place:'폰페라다 → 비야프랑카', temp:'23~26°C', rain:'🌤 보통'},
+  {date:'6/23', place:'비야프랑카 → 오 세브레이로', temp:'19~23°C', rain:'🌧 높음 (안개·비 대비)'},
+  {date:'6/24', place:'오 세브레이로 → 트리아카스텔라', temp:'20~22°C', rain:'🌦 보통'},
+  {date:'6/25', place:'트리아카스텔라 → 사리아', temp:'20~23°C', rain:'🌦 보통'},
+  {date:'6/26', place:'사리아 → 포르토마린', temp:'21~23°C', rain:'🌦 보통'},
+  {date:'6/27', place:'포르토마린 → 팔라스 데 레이', temp:'21~23°C', rain:'🌦 보통'},
+  {date:'6/28', place:'팔라스 데 레이 → 아르수아', temp:'21~23°C', rain:'🌦 보통'},
+  {date:'6/29', place:'아르수아 → 아메날', temp:'21~23°C', rain:'🌦 보통'},
+  {date:'6/30', place:'아메날 → 산티아고', temp:'22~24°C', rain:'🌦 보통'},
+  {date:'7/1',  place:'산티아고 (휴식)', temp:'23~24°C', rain:'🌤 보통'},
+  {date:'7/2',  place:'마드리드 → 귀국', temp:'28~30°C', rain:'☀️ 낮음'},
+];
+const tl = document.getElementById('weather-timeline');
+weatherData.forEach(w => {
+  const row = document.createElement('div');
+  row.className = 'weather-timeline-row';
+  row.innerHTML = `<div class="date">${w.date}</div><div class="place">${w.place}</div><div class="temp">${w.temp}</div><div class="rain">${w.rain}</div>`;
+  tl.appendChild(row);
+});
+
+// ── CHECKLIST ──────────────────────────────────────────────────
+const checklistData = [
+  {
+    title:'1순위 — 신발·발 관리', priority:'red', icon:'👟',
+    items:[
+      {id:'c1', prio:'🔴', text:'등산화 또는 트레킹화', sub:'방수, 발목 지지력, 충분한 길들이기 (출발 2~3개월 전부터 착용)'},
+      {id:'c2', prio:'🔴', text:'울 트레킹 양말 × 3~4켤레', sub:'Darn Tough / Smartwool 등 — 면 양말 금지'},
+      {id:'c3', prio:'🔴', text:'물집 예방 테이프', sub:'Leukotape K / 블리스터 패치 — 사전 취약 부위 테이핑'},
+      {id:'c4', prio:'🔴', text:'샌들 또는 슬리퍼', sub:'도착 후 발 회복용 (Birkenstock 등 쿠셔닝 있는 것)'},
+      {id:'c5', prio:'🟡', text:'발가락 양말 (Injinji)', sub:'발가락 사이 물집 예방'},
+    ]
+  },
+  {
+    title:'2순위 — 배낭 & 짐', priority:'red', icon:'🎒',
+    items:[
+      {id:'c6', prio:'🔴', text:'배낭 30~40L', sub:'허리 벨트 필수, 방수 커버 포함 (Osprey / Deuter 등)'},
+      {id:'c7', prio:'🔴', text:'배낭 무게 관리', sub:'총 체중의 10% 이하 권장 (60kg → 6kg 이하)'},
+      {id:'c8', prio:'🔴', text:'방수 팩커블 우비 / 폰초', sub:'갈리시아 구간 비 필수 대비'},
+      {id:'c9', prio:'🟡', text:'압축 팩 / 지퍼백', sub:'짐 정리 및 방수 용도'},
+    ]
+  },
+  {
+    title:'3순위 — 행정·서류', priority:'red', icon:'📋',
+    items:[
+      {id:'c10', prio:'🔴', text:'여권', sub:'유효기간 6개월 이상 확인'},
+      {id:'c11', prio:'🔴', text:'순례자 여권 (Credencial del Peregrino)', sub:'한국 카미노 협회 또는 현지 성당에서 발급'},
+      {id:'c12', prio:'🔴', text:'항공권 E-ticket 출력 또는 저장', sub:''},
+      {id:'c13', prio:'🔴', text:'숙소 예약 확인서', sub:'확정 숙소 전체 출력'},
+      {id:'c14', prio:'🔴', text:'여행자 보험 증서', sub:'의료 응급 이송 포함 여부 확인'},
+      {id:'c15', prio:'🔴', text:'비상 연락처 카드', sub:'현지어(스페인어) 포함'},
+    ]
+  },
+  {
+    title:'4순위 — 의류 (경량·속건)', priority:'red', icon:'👕',
+    items:[
+      {id:'c16', prio:'🔴', text:'속건 티셔츠 × 2~3장', sub:''},
+      {id:'c17', prio:'🔴', text:'트레킹 바지 또는 레깅스 × 2장', sub:'지퍼 탈부착 형태 권장'},
+      {id:'c18', prio:'🔴', text:'방풍·경량 재킷 × 1', sub:'고산 구간 오 세브레이로 1300m 대비'},
+      {id:'c19', prio:'🔴', text:'모자 (챙 넓은 것)', sub:'메세타 강한 햇볕 차단 필수'},
+      {id:'c20', prio:'🟡', text:'보온 레이어 (경량 플리스 또는 다운)', sub:'아침 출발 시 추위 대비'},
+      {id:'c21', prio:'🟡', text:'속건 속옷 × 3장', sub:''},
+      {id:'c22', prio:'🟡', text:'수면용 라이너 (침낭 시트)', sub:'알베르게 이용 시 필수'},
+    ]
+  },
+  {
+    title:'5순위 — 건강·의약품', priority:'yellow', icon:'💊',
+    items:[
+      {id:'c23', prio:'🟡', text:'무릎 보호대', sub:'라바날→폰페라다 (D8) 긴 내리막 필수'},
+      {id:'c24', prio:'🟡', text:'발목 서포터', sub:'불안정한 지형 대비'},
+      {id:'c25', prio:'🟡', text:'트레킹 폴 (스틱) 1쌍', sub:'무릎 부담 30% 경감'},
+      {id:'c26', prio:'🟡', text:'진통소염제 (이부프로펜 계열)', sub:''},
+      {id:'c27', prio:'🟡', text:'근육통 파스 / 스프레이', sub:'볼타렌 등'},
+      {id:'c28', prio:'🟡', text:'항생 연고 + 밴드 + 거즈', sub:''},
+      {id:'c29', prio:'🟡', text:'자외선 차단제 SPF50+', sub:'메세타 노출 구간'},
+      {id:'c30', prio:'🟡', text:'모기·벌레 기피제', sub:'갈리시아 숲길 구간'},
+      {id:'c31', prio:'🟡', text:'정장제 / 지사제', sub:'음식 적응 기간 대비'},
+      {id:'c32', prio:'🟡', text:'비타민 C / 마그네슘', sub:'피로 및 근육 경련 예방'},
+    ]
+  },
+  {
+    title:'6순위 — 장비·전자기기', priority:'yellow', icon:'⚡',
+    items:[
+      {id:'c33', prio:'🟡', text:'헤드랜턴 + 여분 배터리', sub:'새벽 5시 출발 필수'},
+      {id:'c34', prio:'🟡', text:'보조 배터리 (10,000mAh 이상)', sub:''},
+      {id:'c35', prio:'🟡', text:'유럽형 어댑터 (Type C)', sub:''},
+      {id:'c36', prio:'🟡', text:'스마트폰', sub:'Buen Camino 앱, 오프라인 지도 설치'},
+      {id:'c37', prio:'🟡', text:'물통 / 하이드레이션 팩 1.5L 이상', sub:''},
+      {id:'c38', prio:'🟡', text:'행동식 (에너지바, 견과류)', sub:'구간 중 보급 없는 곳 대비'},
+    ]
+  },
+  {
+    title:'7순위 — 편의·선택 아이템', priority:'green', icon:'✨',
+    items:[
+      {id:'c39', prio:'🟢', text:'트레킹 타월 (초경량 속건)', sub:''},
+      {id:'c40', prio:'🟢', text:'귀마개', sub:'알베르게 코골이 대비'},
+      {id:'c41', prio:'🟢', text:'안대', sub:'새벽 취침·기상 시'},
+      {id:'c42', prio:'🟢', text:'카미노 가이드북', sub:"존 브리얼리 『A Pilgrim's Guide』"},
+      {id:'c43', prio:'🟢', text:'세탁 비닐백 + 빨랫줄', sub:'알베르게 세탁 대비'},
+      {id:'c44', prio:'🟢', text:'스패츠 (게이터)', sub:'비오는 날 진흙 구간 보호'},
+      {id:'c45', prio:'🟢', text:'소형 자물쇠', sub:'알베르게 사물함용'},
+    ]
+  },
+];
+
+const priorityClass = {red:'priority-red', yellow:'priority-yellow', green:'priority-green'};
+const priorityLabel = {red:'🔴 필수', yellow:'🟡 권장', green:'🟢 선택'};
+const grid = document.getElementById('checklist-grid');
+const savedChecks = JSON.parse(localStorage.getItem('camino-checks') || '{}');
+
+checklistData.forEach(cat => {
+  const card = document.createElement('div');
+  card.className = 'checklist-card';
+  const itemsHTML = cat.items.map(item => {
+    const checked = savedChecks[item.id] ? 'checked' : '';
+    const doneClass = savedChecks[item.id] ? 'done' : '';
+    return `<div class="check-item ${doneClass}" id="wrap-${item.id}">
+      <span class="prio-icon">${item.prio}</span>
+      <input type="checkbox" id="${item.id}" ${checked} onchange="toggleCheck('${item.id}')">
+      <label for="${item.id}"><strong>${item.text}</strong>${item.sub ? `<span class="sub">${item.sub}</span>` : ''}</label>
+    </div>`;
+  }).join('');
+  card.innerHTML = `
+    <div class="checklist-card-header">
+      <span style="font-size:1.1rem">${cat.icon}</span>
+      <span class="checklist-card-title">${cat.title}</span>
+      <span class="checklist-priority ${priorityClass[cat.priority]}">${priorityLabel[cat.priority]}</span>
+    </div>
+    <div class="checklist-items">${itemsHTML}</div>
+  `;
+  grid.appendChild(card);
+});
+
+function toggleCheck(id) {
+  const cb = document.getElementById(id);
+  const wrap = document.getElementById('wrap-'+id);
+  if (cb.checked) { wrap.classList.add('done'); savedChecks[id] = true; }
+  else { wrap.classList.remove('done'); delete savedChecks[id]; }
+  localStorage.setItem('camino-checks', JSON.stringify(savedChecks));
+  updateProgress();
+}
+
+function updateProgress() {
+  const allItems = checklistData.flatMap(c => c.items);
+  const total = allItems.length;
+  const done = allItems.filter(i => savedChecks[i.id]).length;
+  const pct = total ? Math.round(done / total * 100) : 0;
+  document.getElementById('progress-pct').textContent = pct + '%';
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = `${done} / ${total} 항목 완료`;
+}
+updateProgress();
+
+// Toast helper
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+document.getElementById('card-d5')?.scrollIntoView({behavior:'smooth', block:'center'});
+</script>
+</body>
+</html>
