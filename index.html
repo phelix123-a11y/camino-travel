@@ -433,7 +433,7 @@
      MOBILE (≤ 767px)
   ══════════════════════════════════════════ */
   @media (max-width: 767px) {
-    /* BODY: allow scrolling when not in schedule tab */
+    /* BODY */
     body { height: 100dvh; }
 
     /* HEADER */
@@ -443,11 +443,11 @@
       align-items: flex-start;
       gap: 8px;
     }
-    .header-left h1 { font-size: 0.95rem; }
-    .header-left p  { font-size: 0.68rem; }
+    .header-left h1 { font-size: 1.0rem; }
+    .header-left p  { font-size: 0.78rem; }
     .header-stats   { gap: 14px; width: 100%; justify-content: space-between; }
-    .stat-val { font-size: 0.95rem; }
-    .stat-lbl { font-size: 0.58rem; }
+    .stat-val { font-size: 1.05rem; }
+    .stat-lbl { font-size: 0.68rem; }
 
     /* TAB NAV: horizontal scroll */
     .tab-nav {
@@ -456,7 +456,7 @@
       scrollbar-width: none;
     }
     .tab-nav::-webkit-scrollbar { display: none; }
-    .tab-btn { padding: 9px 14px; font-size: 0.72rem; flex-shrink: 0; }
+    .tab-btn { padding: 11px 16px; font-size: 0.84rem; flex-shrink: 0; }
 
     /* ── SCHEDULE PANEL: vertical stack ── */
     #panel-schedule { flex-direction: column; }
@@ -465,7 +465,7 @@
     /* SIDEBAR: compact top section */
     .sidebar {
       width: 100%;
-      max-height: 45vh;
+      max-height: 55vh;
       border-right: none;
       border-bottom: 1px solid rgba(232,184,75,0.15);
       overflow-y: auto;
@@ -482,61 +482,106 @@
     }
     #map.map-hidden { height: 0; overflow: hidden; }
 
-    /* LEGEND: smaller, bottom-left on mobile */
+    /* LEGEND: smaller on mobile */
     .legend {
       bottom: 10px;
       right: 8px;
       padding: 8px 10px;
-      font-size: 0.6rem;
+      font-size: 0.64rem;
       min-width: 120px;
     }
 
-    /* ── OTHER PANELS ── */
-    .scroll-panel { padding: 16px 14px; }
-    .section-title { font-size: 1.1rem; }
-    .section-sub   { font-size: 0.72rem; margin-bottom: 18px; }
+    /* ── DAY CARDS (핵심 가독성 개선) ── */
+    .phase-header { padding: 10px 16px; font-size: 0.72rem; }
+    .day-card { padding: 14px 16px; }
+    .day-card-header { margin-bottom: 7px; gap: 8px; }
+    .day-badge { font-size: 0.68rem; padding: 3px 8px; }
+    .day-date  { font-size: 0.78rem; }
+    .day-title { font-size: 0.96rem; line-height: 1.4; }
+    .day-note  { font-size: 0.78rem; margin-top: 4px; }
+    .day-items { margin-top: 8px; }
+    .day-item  {
+      font-size: 0.84rem;
+      padding: 3px 0;
+      line-height: 1.6;
+      word-break: keep-all;
+    }
+    .accommodation { margin-top: 10px; padding: 9px 12px; }
+    .acc-icon   { font-size: 1rem; }
+    .acc-name   { font-size: 0.86rem; }
+    .acc-detail {
+      font-size: 0.76rem;
+      margin-top: 3px;
+      line-height: 1.55;
+    }
 
-    /* COST: single column */
+    /* ── OTHER PANELS ── */
+    .scroll-panel { padding: 20px 16px; }
+    .section-title { font-size: 1.2rem; }
+    .section-sub   { font-size: 0.84rem; margin-bottom: 20px; }
+
+    /* COST */
     .cost-summary-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-    .cost-card { padding: 12px 14px; }
-    .cost-card-icon   { font-size: 1.1rem; margin-bottom: 6px; }
-    .cost-card-amount { font-size: 0.9rem; }
-    .cost-card.total .cost-card-amount { font-size: 1rem; }
+    .cost-card { padding: 14px; }
+    .cost-card-icon   { font-size: 1.3rem; margin-bottom: 7px; }
+    .cost-card-label  { font-size: 0.78rem; }
+    .cost-card-amount { font-size: 1.0rem; }
+    .cost-card.total .cost-card-amount { font-size: 1.1rem; }
+    .cost-card-status { font-size: 0.7rem; }
+    .cost-section { margin-bottom: 24px; }
+    .cost-section-title { font-size: 0.92rem; }
 
     /* TABLES: force horizontal scroll */
     .wrap { border-radius: 8px; }
     .data-table { min-width: 480px; }
-    .data-table th, .data-table td { padding: 7px 10px; font-size: 0.7rem; }
-    .cost-section { margin-bottom: 22px; }
-    .cost-section-title { font-size: 0.82rem; }
+    .data-table th { padding: 9px 10px; font-size: 0.78rem; }
+    .data-table td { padding: 10px 10px; font-size: 0.82rem; }
 
-    /* WEATHER: single column */
-    .weather-grid { grid-template-columns: 1fr; gap: 10px; }
-    .weather-card { padding: 12px; }
-    .weather-card-place { font-size: 0.78rem; }
-    .weather-temps { gap: 10px; }
-    .temp-val { font-size: 0.95rem; }
+    /* WEATHER */
+    .weather-grid { grid-template-columns: 1fr; gap: 12px; }
+    .weather-card { padding: 14px; }
+    .weather-card-place { font-size: 0.92rem; }
+    .weather-card-date  { font-size: 0.74rem; }
+    .weather-card-icon  { font-size: 2.0rem; }
+    .weather-temps { gap: 12px; }
+    .temp-val { font-size: 1.15rem; }
+    .temp-lbl { font-size: 0.66rem; }
+    .weather-detail { font-size: 0.82rem; line-height: 1.6; }
+    .weather-tip  { font-size: 0.8rem; padding: 9px 11px; }
+    .weather-warn { font-size: 0.8rem; padding: 9px 11px; }
     .weather-timeline-row {
-      grid-template-columns: 45px 1fr 58px 58px;
-      font-size: 0.62rem;
+      grid-template-columns: 48px 1fr 62px 62px;
+      font-size: 0.74rem;
+      padding: 9px 12px;
       min-width: 320px;
     }
-    .weather-timeline-row .place { font-size: 0.62rem; }
+    .weather-timeline-row .place { font-size: 0.74rem; }
+    .weather-timeline-row .date  { font-size: 0.7rem; }
 
-    /* CHECKLIST: single column */
-    .checklist-grid { grid-template-columns: 1fr; gap: 12px; }
-    .checklist-card-title { font-size: 0.78rem; }
-    .check-item label { font-size: 0.72rem; }
-    .apps-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-    .app-card { padding: 10px; }
-    .app-name { font-size: 0.72rem; }
-    .app-desc { font-size: 0.6rem; }
-
-    /* DAY CARDS */
-    .day-title { font-size: 0.8rem; }
-    .day-item  { font-size: 0.68rem; }
-    .acc-name  { font-size: 0.7rem; }
-    .acc-detail{ font-size: 0.6rem; }
+    /* CHECKLIST */
+    .checklist-grid { grid-template-columns: 1fr; gap: 14px; }
+    .checklist-card-header { padding: 14px 16px; }
+    .checklist-card-title { font-size: 0.92rem; }
+    .checklist-items { padding: 12px 16px; }
+    .check-item { padding: 11px 0; }
+    .check-item input[type=checkbox] { width: 18px; height: 18px; margin-top: 1px; }
+    .check-item label {
+      font-size: 0.88rem;
+      line-height: 1.55;
+      word-break: keep-all;
+    }
+    .check-item label .sub { font-size: 0.75rem; margin-top: 3px; }
+    .prio-icon { font-size: 0.9rem; }
+    .apps-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .app-card  { padding: 12px; }
+    .app-icon  { font-size: 1.5rem; }
+    .app-name  { font-size: 0.86rem; }
+    .app-desc  { font-size: 0.74rem; line-height: 1.4; }
+    .app-free  { font-size: 0.65rem; }
+    .warn-box  { padding: 16px; }
+    .warn-box-title { font-size: 0.94rem; }
+    .warn-item { font-size: 0.88rem; line-height: 1.55; word-break: keep-all; }
+    .progress-label { font-size: 0.72rem; }
   }
 
   /* iPhone safe area (notch / home bar) */
@@ -548,12 +593,16 @@
     }
   }
 
-  /* Extra small phones */
+  /* Extra small phones (≤ 390px) */
   @media (max-width: 390px) {
     .cost-summary-grid { grid-template-columns: 1fr; }
     .apps-grid { grid-template-columns: 1fr; }
-    .header-left h1 { font-size: 0.85rem; }
-    .tab-btn { padding: 9px 10px; font-size: 0.65rem; }
+    .header-left h1 { font-size: 0.9rem; }
+    .tab-btn { padding: 10px 12px; font-size: 0.78rem; }
+    .day-title { font-size: 0.88rem; }
+    .day-item  { font-size: 0.8rem; }
+    .acc-detail{ font-size: 0.72rem; }
+    .check-item label { font-size: 0.84rem; }
   }
 </style>
 </head>
